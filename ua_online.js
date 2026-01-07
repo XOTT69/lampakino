@@ -1,66 +1,76 @@
 (function() {
     'use strict';
     
-    console.log('UA+ Plugin START');
-    
     const NAME = 'UA+ Online 🔍';
-    
-    function init() {
-        console.log('UA+ init called, Lampa:', !!Lampa);
-        
-        if (!Lampa?.Listener?.follow) {
-            console.log('No Lampa.Listener, retry...');
-            setTimeout(init, 1000);
+    const SOURCES = [
+        {name: 'UAKino', url: 'https://uakino.best/?s='},
+        {name: 'UASerials', url: 'https://uaserials.com/?s='},
+        {name: 'HDrezka', url: 'https://hdrezka.ag/search/?do=search&subaction=search&q='}
+    ];
+
+    function createButton(title) {
+        const btn = $(`
+            <div class="button selector ua-online" style="background: linear-gradient(45deg, #ff6b6b, #4ecdc4); margin-left: 5px;">
+                <div class="button__icon">🔍</div>
+                <div class="button__text">${NAME}</div>
+            </div>
+        `);
+
+        btn.on('hover:enter', () => {
+            const items = SOURCES.map(s => ({
+                title: s.name,
+                onSelect: () => Lampa.Activity.push({
+                    component: 'browser',
+                    title: `${s.name}: ${title}`,
+                    url: s.url + encodeURIComponent(title)
+                })
+            }));
+            
+            Lampa.Select.show({
+                title: `${NAME}: "${title}"`,
+                items: items
+            });
+        });
+
+        return btn;
+    }
+
+    function addButton() {
+        // Шукаємо екран фільму + кнопки
+        const movieScreen = $('.view--movie, .full-start, [data-controller="full"]');
+        if (movieScreen.length) {
+            const title = $('.info__title, .full-info__title, h1').first().text().trim() || 
+                         $('.movie--title, .item__name').first().text().trim();
+            
+            if (title && !$('.ua-online').length) {
+                const buttonsContainer = $('.buttons, .view--buttons, .full-buttons, .button:eq(-1)').parent();
+                if (buttonsContainer.length) {
+                    buttonsContainer.append(createButton(title));
+                    Lampa.Noty.show(`UA+ кнопка для "${title}" ✅`);
+                }
+            }
+        }
+    }
+
+    // 🔥 Головний observer - реагує на ЗМІНИ DOM
+    const observer = new MutationObserver(() => {
+        addButton();
+    });
+
+    // Запуск
+    function start() {
+        if (!Lampa || !$ || !Lampa.Activity || !Lampa.Select) {
+            setTimeout(start, 500);
             return;
         }
 
-        console.log('Lampa.Listener OK');
-
-        Lampa.Template.add('ua_online_btn', 
-            `<div class="button selector ua-online">
-                <div class="button__icon">🔍</div>
-                <div class="button__text">${NAME}</div>
-            </div>`
-        );
-
-        // 🔥 ДІАГНОСТИКА: слухаємо ВСІ події
-        Lampa.Listener.follow('full', e => {
-            console.log('FULL event:', e);
-            console.log('e.buttons:', e?.buttons);
-            console.log('title:', e?.movie?.title || e?.title);
-            
-            const title = e?.movie?.title || e?.object?.title || e?.title || '';
-            if (!title) {
-                console.log('No title, skip');
-                return;
-            }
-            
-            if (e.buttons.find('.ua-online').length) {
-                console.log('Button already exists');
-                return;
-            }
-
-            console.log('Creating button...');
-            const btn = Lampa.Template.get('ua_online_btn');
-            
-            // Спроба 1: стандартний append
-            if (e.buttons) {
-                e.buttons.append(btn);
-                console.log('Button appended');
-                Lampa.Noty.show('UA+ Button created!');
-            } else {
-                console.log('No e.buttons!');
-            }
-        });
-
-        Lampa.Noty.show('UA+ Listener ready!');
-        console.log('UA+ Listener set');
+        observer.observe(document.body, { childList: true, subtree: true });
+        Lampa.Noty.show('UA+ Online ACTIVE!');
+        
+        // Початковий скан
+        setTimeout(addButton, 1000);
+        setInterval(addButton, 2000); // Періодичний скан
     }
 
-    if (window.Lampa) init();
-    else {
-        console.log('Waiting Lampa...');
-        const check = () => window.Lampa ? init() : setTimeout(check, 500);
-        check();
-    }
+    if (window.Lampa) start();
 })();
