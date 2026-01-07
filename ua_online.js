@@ -1,86 +1,74 @@
 (function() {
     'use strict';
     
-    const NAME = 'UA+ Online';
-    const INTERVAL = 1500; // скан кожні 1.5с
-    
+    const NAME = 'UA+ Online 🔍';
     const SOURCES = [
         {title: 'UAKino', url: 'https://uakino.best/?s='},
         {title: 'UASerials', url: 'https://uaserials.com/?s='},
         {title: 'HDrezka', url: 'https://hdrezka.ag/search/?do=search&subaction=search&q='}
     ];
 
-    Lampa.Noty.show(`${NAME} активний!`);
+    Lampa.Noty.show(`${NAME} шукає...`);
 
-    // Функція створення кнопки
-    function createUAOnlineButton(title) {
-        const btnHTML = `
-            <div class="button selector ua-online" style="background: #ff4757; color: white; margin-left: 8px; border-radius: 6px;">
-                <div class="button__icon">🔍</div>
-                <div class="button__text">${NAME}</div>
-            </div>
-        `;
-        
-        const $btn = $(btnHTML);
-        
-        $btn.on('hover:enter', function() {
-            const menuItems = SOURCES.map(source => ({
-                title: source.title,
-                onSelect: () => {
-                    const searchUrl = source.url + encodeURIComponent(title);
-                    Lampa.Activity.push({
-                        component: 'browser',
-                        title: `${source.title}: "${title}"`,
-                        url: searchUrl
-                    });
-                }
-            }));
-            
-            Lampa.Select.show({
-                title: `${NAME}: Пошук "${title}"`,
-                items: menuItems
-            });
+    // НЕЗНИЩИМий сканер — пробує ВСІ можливі способи
+    function tryAddButton() {
+        // 1. Витягуємо назву АГРЕСИВНО
+        const possibleTitles = [];
+        $('*').each(function() {
+            const text = $(this).text().trim();
+            if (text.length > 3 && text.length < 100 && 
+                !$(this).hasClass('button') && !$(this).hasClass('menu')) {
+                possibleTitles.push(text);
+            }
         });
         
-        return $btn;
-    }
-
-    // Сканування DOM кожні INTERVAL ms
-    setInterval(() => {
-        // Шукаємо ЕКРАН ФІЛЬМУ
-        const isMovieScreen = $('.view--movie, .full, .item-view, [class*="full"], [class*="movie-detail"]').length > 0;
-        
-        if (!isMovieScreen) return;
-        
-        // Витягуємо НАЗВУ
-        let title = '';
-        const titleSelectors = [
-            '.info__title', '.full__title', '.movie__title', 
-            '.item__name', 'h1', '.title', '[class*="title"]'
-        ];
-        
-        for (let selector of titleSelectors) {
-            const $titleEl = $(selector).first();
-            if ($titleEl.length && $titleEl.text().trim()) {
-                title = $titleEl.text().trim();
-                break;
-            }
-        }
+        const title = possibleTitles.find(t => t.length > 5) || '';
         
         if (!title || $('.ua-online').length) return;
         
-        Lampa.Noty.show(`UA+ знайшов "${title}"`);
+        Lampa.Noty.show(`UA+ назва: "${title.substring(0,20)}"`);
         
-        // Шукаємо КНОПОЧКИ і додаємо нашу
-        const buttonContainers = $('.buttons, .button-list, .actions, .view--buttons');
+        // 2. Шукаємо БУДЬ-ЯКИЙ контейнер з кнопками
+        const buttonParents = [];
+        $('.button, [class*="button"]').each(function() {
+            buttonParents.push($(this).parent()[0]);
+        });
         
-        if (buttonContainers.length) {
-            const $container = buttonContainers.first();
-            $container.append(createUAOnlineButton(title));
-            Lampa.Noty.show('🔍 UA+ кнопка додана!');
+        const container = $(buttonParents[0]);
+        
+        if (container.length && !container.find('.ua-online').length) {
+            // 3. Створюємо кнопку
+            const btn = $(`
+                <div class="button selector ua-online" style="background: #ff4757; color: white; margin: 0 5px; padding: 8px 12px; border-radius: 4px;">
+                    <div style="font-size: 20px;">🔍</div>
+                    <div style="font-size: 12px;">${NAME}</div>
+                </div>
+            `);
+            
+            btn.on('hover:enter', () => {
+                Lampa.Select.show({
+                    title: `Пошук "${title}"`,
+                    items: SOURCES.map(s => ({
+                        title: s.title,
+                        onSelect: () => Lampa.Activity.push({
+                            component: 'browser',
+                            title: `${s.title}: ${title}`,
+                            url: s.url + encodeURIComponent(title)
+                        })
+                    }))
+                });
+            });
+            
+            container.append(btn);
+            Lampa.Noty.show('🔥 UA+ КНОПКА ДОДАНА!');
         }
-        
-    }, INTERVAL);
+    }
 
-    console.log(`${NAME} сканування запущено`);
+    // 🔥 Скан кожні 1с + подіями
+    setInterval(tryAddButton, 1000);
+    
+    // При кліку/навігації
+    $(document).on('click hoverenter', tryAddButton);
+    
+    Lampa.Noty.show(`${NAME} сканування ACTIVE!`);
 })();
