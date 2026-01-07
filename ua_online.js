@@ -2,49 +2,49 @@
     'use strict';
     if (!window.Lampa) return;
 
-    const SOURCE_NAME = 'UA+ Online';
-
-    function openSite(base, title) {
-        const url = base + encodeURIComponent(title);
-        Lampa.Activity.push({
-            component: 'browser',
-            url: url,
-            title: SOURCE_NAME
-        });
+    // чекаємо, поки завантажиться Online Mod
+    function waitOnlineMod(cb) {
+        let t = setInterval(() => {
+            if (Lampa.Extensions && Lampa.Extensions.get('online_mod')) {
+                clearInterval(t);
+                cb();
+            }
+        }, 300);
     }
 
-    // Реєструємо "джерело"
-    Lampa.Source.add({
-        name: SOURCE_NAME,
-        type: 'online',
-        search: function (object, callback) {
-            callback([{
-                title: SOURCE_NAME,
-                quality: 'HD',
-                info: 'UA / RU',
-                url: 'ua_online'
-            }]);
-        },
-        play: function (object) {
-            const title = object.movie.title || object.movie.name || '';
-            Lampa.Select.show({
-                title: SOURCE_NAME,
-                items: [
-                    {
-                        title: 'UASerials',
-                        onSelect: () => openSite('https://uaserials.com/?s=', title)
-                    },
-                    {
-                        title: 'UAKino',
-                        onSelect: () => openSite('https://uakino.best/?s=', title)
-                    },
-                    {
-                        title: 'HDrezka',
-                        onSelect: () => openSite('https://hdrezka.ag/search/?do=search&subaction=search&q=', title)
-                    }
-                ]
+    waitOnlineMod(function () {
+
+        console.log('[UA Helper] loaded');
+
+        // перехоплюємо результати джерел
+        Lampa.Listener.follow('online_sources', function (e) {
+            if (!e || !e.sources) return;
+
+            // залишаємо тільки робочі та зрозумілі джерела
+            e.sources = e.sources.filter(src => {
+                if (!src.title) return false;
+
+                const name = src.title.toLowerCase();
+
+                // залишаємо HDrezka і UA
+                if (name.includes('rezka')) return true;
+                if (name.includes('ua')) return true;
+
+                return false;
             });
-        }
+
+        });
+
+        // підсвічуємо UA
+        Lampa.Listener.follow('online_choice', function (e) {
+            if (!e || !e.source) return;
+
+            const t = (e.source.title || '').toLowerCase();
+            if (t.includes('ua')) {
+                e.source.quality = 'UA';
+            }
+        });
+
     });
 
 })();
