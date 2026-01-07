@@ -1,76 +1,86 @@
 (function() {
     'use strict';
     
-    const NAME = 'UA+ Online 🔍';
+    const NAME = 'UA+ Online';
+    const INTERVAL = 1500; // скан кожні 1.5с
+    
     const SOURCES = [
-        {name: 'UAKino', url: 'https://uakino.best/?s='},
-        {name: 'UASerials', url: 'https://uaserials.com/?s='},
-        {name: 'HDrezka', url: 'https://hdrezka.ag/search/?do=search&subaction=search&q='}
+        {title: 'UAKino', url: 'https://uakino.best/?s='},
+        {title: 'UASerials', url: 'https://uaserials.com/?s='},
+        {title: 'HDrezka', url: 'https://hdrezka.ag/search/?do=search&subaction=search&q='}
     ];
 
-    function createButton(title) {
-        const btn = $(`
-            <div class="button selector ua-online" style="background: linear-gradient(45deg, #ff6b6b, #4ecdc4); margin-left: 5px;">
+    Lampa.Noty.show(`${NAME} активний!`);
+
+    // Функція створення кнопки
+    function createUAOnlineButton(title) {
+        const btnHTML = `
+            <div class="button selector ua-online" style="background: #ff4757; color: white; margin-left: 8px; border-radius: 6px;">
                 <div class="button__icon">🔍</div>
                 <div class="button__text">${NAME}</div>
             </div>
-        `);
-
-        btn.on('hover:enter', () => {
-            const items = SOURCES.map(s => ({
-                title: s.name,
-                onSelect: () => Lampa.Activity.push({
-                    component: 'browser',
-                    title: `${s.name}: ${title}`,
-                    url: s.url + encodeURIComponent(title)
-                })
+        `;
+        
+        const $btn = $(btnHTML);
+        
+        $btn.on('hover:enter', function() {
+            const menuItems = SOURCES.map(source => ({
+                title: source.title,
+                onSelect: () => {
+                    const searchUrl = source.url + encodeURIComponent(title);
+                    Lampa.Activity.push({
+                        component: 'browser',
+                        title: `${source.title}: "${title}"`,
+                        url: searchUrl
+                    });
+                }
             }));
             
             Lampa.Select.show({
-                title: `${NAME}: "${title}"`,
-                items: items
+                title: `${NAME}: Пошук "${title}"`,
+                items: menuItems
             });
         });
-
-        return btn;
+        
+        return $btn;
     }
 
-    function addButton() {
-        // Шукаємо екран фільму + кнопки
-        const movieScreen = $('.view--movie, .full-start, [data-controller="full"]');
-        if (movieScreen.length) {
-            const title = $('.info__title, .full-info__title, h1').first().text().trim() || 
-                         $('.movie--title, .item__name').first().text().trim();
-            
-            if (title && !$('.ua-online').length) {
-                const buttonsContainer = $('.buttons, .view--buttons, .full-buttons, .button:eq(-1)').parent();
-                if (buttonsContainer.length) {
-                    buttonsContainer.append(createButton(title));
-                    Lampa.Noty.show(`UA+ кнопка для "${title}" ✅`);
-                }
+    // Сканування DOM кожні INTERVAL ms
+    setInterval(() => {
+        // Шукаємо ЕКРАН ФІЛЬМУ
+        const isMovieScreen = $('.view--movie, .full, .item-view, [class*="full"], [class*="movie-detail"]').length > 0;
+        
+        if (!isMovieScreen) return;
+        
+        // Витягуємо НАЗВУ
+        let title = '';
+        const titleSelectors = [
+            '.info__title', '.full__title', '.movie__title', 
+            '.item__name', 'h1', '.title', '[class*="title"]'
+        ];
+        
+        for (let selector of titleSelectors) {
+            const $titleEl = $(selector).first();
+            if ($titleEl.length && $titleEl.text().trim()) {
+                title = $titleEl.text().trim();
+                break;
             }
         }
-    }
-
-    // 🔥 Головний observer - реагує на ЗМІНИ DOM
-    const observer = new MutationObserver(() => {
-        addButton();
-    });
-
-    // Запуск
-    function start() {
-        if (!Lampa || !$ || !Lampa.Activity || !Lampa.Select) {
-            setTimeout(start, 500);
-            return;
-        }
-
-        observer.observe(document.body, { childList: true, subtree: true });
-        Lampa.Noty.show('UA+ Online ACTIVE!');
         
-        // Початковий скан
-        setTimeout(addButton, 1000);
-        setInterval(addButton, 2000); // Періодичний скан
-    }
+        if (!title || $('.ua-online').length) return;
+        
+        Lampa.Noty.show(`UA+ знайшов "${title}"`);
+        
+        // Шукаємо КНОПОЧКИ і додаємо нашу
+        const buttonContainers = $('.buttons, .button-list, .actions, .view--buttons');
+        
+        if (buttonContainers.length) {
+            const $container = buttonContainers.first();
+            $container.append(createUAOnlineButton(title));
+            Lampa.Noty.show('🔍 UA+ кнопка додана!');
+        }
+        
+    }, INTERVAL);
 
-    if (window.Lampa) start();
+    console.log(`${NAME} сканування запущено`);
 })();
