@@ -1,50 +1,60 @@
 (function () {
     'use strict';
+
     if (!window.Lampa) return;
 
-    // чекаємо, поки завантажиться Online Mod
-    function waitOnlineMod(cb) {
-        let t = setInterval(() => {
-            if (Lampa.Extensions && Lampa.Extensions.get('online_mod')) {
-                clearInterval(t);
-                cb();
-            }
-        }, 300);
+    const NAME = 'UA+ Online';
+
+    function open(url, title) {
+        Lampa.Activity.push({
+            component: 'browser',
+            title: NAME,
+            url: url + encodeURIComponent(title)
+        });
     }
 
-    waitOnlineMod(function () {
+    function menu(title) {
+        Lampa.Select.show({
+            title: NAME,
+            items: [
+                {
+                    title: 'UAKino (UA)',
+                    onSelect: () => open('https://uakino.best/?s=', title)
+                },
+                {
+                    title: 'UASerials (UA)',
+                    onSelect: () => open('https://uaserials.com/?s=', title)
+                },
+                {
+                    title: 'HDrezka (UA/RU)',
+                    onSelect: () => open(
+                        'https://hdrezka.ag/search/?do=search&subaction=search&q=',
+                        title
+                    )
+                }
+            ]
+        });
+    }
 
-        console.log('[UA Helper] loaded');
+    Lampa.Listener.follow('full', function (e) {
+        if (!e || !e.title || !e.buttons) return;
 
-        // перехоплюємо результати джерел
-        Lampa.Listener.follow('online_sources', function (e) {
-            if (!e || !e.sources) return;
+        if (e.buttons.find('.ua-online').length) return;
 
-            // залишаємо тільки робочі та зрозумілі джерела
-            e.sources = e.sources.filter(src => {
-                if (!src.title) return false;
+        Lampa.Template.add('ua_online_btn',
+            `<div class="button selector ua-online">
+                <div class="button__icon">▶</div>
+                <div class="button__text">${NAME}</div>
+            </div>`
+        );
 
-                const name = src.title.toLowerCase();
+        const btn = Lampa.Template.get('ua_online_btn');
 
-                // залишаємо HDrezka і UA
-                if (name.includes('rezka')) return true;
-                if (name.includes('ua')) return true;
-
-                return false;
-            });
-
+        btn.on('hover:enter', function () {
+            menu(e.title);
         });
 
-        // підсвічуємо UA
-        Lampa.Listener.follow('online_choice', function (e) {
-            if (!e || !e.source) return;
-
-            const t = (e.source.title || '').toLowerCase();
-            if (t.includes('ua')) {
-                e.source.quality = 'UA';
-            }
-        });
-
+        e.buttons.append(btn);
     });
 
 })();
