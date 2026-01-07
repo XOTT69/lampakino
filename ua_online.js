@@ -1,54 +1,50 @@
 (function () {
     'use strict';
-
     if (!window.Lampa) return;
 
-    const pluginName = 'UA+ Online';
+    const SOURCE_NAME = 'UA+ Online';
 
     function openSite(base, title) {
-        const query = encodeURIComponent(title);
-        const url = base + query;
+        const url = base + encodeURIComponent(title);
         Lampa.Activity.push({
+            component: 'browser',
             url: url,
-            title: pluginName,
-            component: 'browser'
+            title: SOURCE_NAME
         });
     }
 
-    function showMenu(title) {
-        Lampa.Select.show({
-            title: 'UA+ Online',
-            items: [
-                {
-                    title: 'UASerials',
-                    onSelect: () => openSite('https://uaserials.com/?s=', title)
-                },
-                {
-                    title: 'UAKino',
-                    onSelect: () => openSite('https://uakino.best/?s=', title)
-                },
-                {
-                    title: 'HDrezka',
-                    onSelect: () => openSite('https://hdrezka.ag/search/?do=search&subaction=search&q=', title)
-                }
-            ]
-        });
-    }
-
-    Lampa.Listener.follow('full', function (e) {
-        if (!e || !e.title) return;
-
-        Lampa.Template.add('ua_online_button',
-            `<div class="button selector ua-online">
-                <div class="button__icon">▶</div>
-                <div class="button__text">UA+ Online</div>
-            </div>`
-        );
-
-        const btn = Lampa.Template.get('ua_online_button');
-        btn.on('hover:enter', () => showMenu(e.title));
-
-        e.buttons.append(btn);
+    // Реєструємо "джерело"
+    Lampa.Source.add({
+        name: SOURCE_NAME,
+        type: 'online',
+        search: function (object, callback) {
+            callback([{
+                title: SOURCE_NAME,
+                quality: 'HD',
+                info: 'UA / RU',
+                url: 'ua_online'
+            }]);
+        },
+        play: function (object) {
+            const title = object.movie.title || object.movie.name || '';
+            Lampa.Select.show({
+                title: SOURCE_NAME,
+                items: [
+                    {
+                        title: 'UASerials',
+                        onSelect: () => openSite('https://uaserials.com/?s=', title)
+                    },
+                    {
+                        title: 'UAKino',
+                        onSelect: () => openSite('https://uakino.best/?s=', title)
+                    },
+                    {
+                        title: 'HDrezka',
+                        onSelect: () => openSite('https://hdrezka.ag/search/?do=search&subaction=search&q=', title)
+                    }
+                ]
+            });
+        }
     });
 
 })();
